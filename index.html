@@ -383,7 +383,7 @@ details.sub[open] summary::after { content: "접기"; }
 <script>
 (function () {
 'use strict';
-var APP_VERSION = '1.1';
+var APP_VERSION = '1.2';
 var KEY = 'gagyebu.v1';
 var framed = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
 var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
@@ -430,6 +430,15 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 function digits(s) { return Number(String(s || '').replace(/[^0-9]/g, '').slice(0, 12)) || 0; }
 function niceMax(v) { if (v <= 0) return 1; var e = Math.pow(10, Math.floor(Math.log10(v))); var c = [1, 2, 2.5, 5, 10]; for (var i = 0; i < c.length; i++) if (c[i] * e >= v) return c[i] * e; return 10 * e; }
 function $(id) { return document.getElementById(id); }
+function pctList(vals, total) {
+  if (!total) return vals.map(function () { return 0; });
+  var raw = vals.map(function (v) { return v / total * 100; }), out = raw.map(Math.floor);
+  var left = 100 - out.reduce(function (a, b) { return a + b; }, 0);
+  raw.map(function (r, i) { return [r - Math.floor(r), i]; }).sort(function (a, b) { return b[0] - a[0]; }).slice(0, left).forEach(function (x) { out[x[1]]++; });
+  return out;
+}
+function perDay(v) { return v >= 1000 ? Math.floor(v / 100) * 100 : Math.floor(v); }
+function usePct(spent, budget) { return Math.floor(spent / budget * 100); }
 function sum(list, fn) { return list.reduce(function (a, e) { return a + fn(e); }, 0); }
 
 /* ---------- sample data (marked sample:true) ---------- */
@@ -590,13 +599,13 @@ function installBanner() {
 function budgetHTML(spent, ym) {
   var b = S.settings.budget;
   if (!(b > 0)) return '<button class="link-row" data-action="goto-settings">한 달 예산을 정하면 남은 금액을 알려드려요<span aria-hidden="true">›</span></button>';
-  var st = budgetState(spent, b), pct = Math.round(spent / b * 100), sub;
+  var st = budgetState(spent, b), pct = usePct(spent, b), sub;
   if (st === 'over') sub = '예산보다 <b class="num">' + won(spent - b) + '</b> 더 썼어요.';
   else {
     sub = '<b class="num">' + won(b - spent) + '</b> 남았어요.';
     if (ym === curYM()) {
       var left = daysIn(ym) - new Date().getDate() + 1;
-      sub += ' 오늘 포함 ' + left + '일 동안 하루 <b class="num">' + won(Math.floor((b - spent) / left / 100) * 100) + '</b>씩 쓸 수 있어요.';
+      sub += ' 오늘 포함 ' + left + '일 동안 하루 약 <b class="num">' + won(perDay((b - spent) / left)) + '</b>쯤 쓸 수 있어요.';
     }
   }
   var h = '<div class="budget"><div class="budget-top"><span>예산 <span class="num">' + won(b) + '</span> 중 <b class="num">' + pct + '%</b> 사용</span><span class="pill ' + st + '">' + STATE_LABEL[st] + '</span></div>' +
@@ -606,7 +615,7 @@ function budgetHTML(spent, ym) {
   monthEntries(ym).forEach(function (e) { if (e.type === 'out') ct[e.cat] = (ct[e.cat] || 0) + e.amount; });
   var chips = Object.keys(cb).filter(function (c) { return cb[c] > 0 && (ct[c] || 0) >= cb[c] * 0.8; }).map(function (c) {
     var s2 = budgetState(ct[c] || 0, cb[c]);
-    return '<span class="pill ' + s2 + '">' + esc(c) + ' ' + Math.round((ct[c] || 0) / cb[c] * 100) + '% ' + STATE_LABEL[s2] + '</span>';
+    return '<span class="pill ' + s2 + '">' + esc(c) + ' ' + usePct(ct[c] || 0, cb[c]) + '% ' + STATE_LABEL[s2] + '</span>';
   });
   if (chips.length) h += '<div class="chips">' + chips.join('') + '</div>';
   return h + '</div>';
@@ -738,7 +747,7 @@ function renderStats() {
   h += '<section class="card"><div class="card-head"><h2>' + esc(r.label) + '</h2><span class="muted num">' + days + '일</span></div>' +
     '<div><p class="eyebrow">쓴 돈</p><p class="big num">' + won(t.out) + '</p></div>' +
     '<dl class="kv"><div><dt>들어온 돈</dt><dd class="num income">' + won(t.in) + '</dd></div><div><dt>수입−지출</dt><dd class="num">' + (net < 0 ? '−' : '') + won(Math.abs(net)) + '</dd></div></dl>' +
-    (ed && t.out ? '<p class="hint">하루 평균 <b class="num">' + won(Math.round(t.out / ed / 100) * 100) + '</b> 썼어요' + (ed < days ? ' (오늘까지 ' + ed + '일 기준)' : '') + '.</p>' : '');
+    (ed && t.out ? '<p class="hint">하루 평균 약 <b class="num">' + won(Math.round(t.out / ed / 100) * 100) + '</b> 썼어요' + (ed < days ? ' (오늘까지 ' + ed + '일 기준)' : '') + '.</p>' : '');
   if (sp.mode === 'month') h += budgetHTML(t.out, ui.ym);
   h += '</section>';
 
@@ -748,8 +757,9 @@ function renderStats() {
   if (!t.out) h += '<p class="hint">이 기간에는 지출 기록이 없어요.</p>';
   else {
     h += '<div class="split" aria-hidden="true">' + ['card', 'cash', 'none'].filter(function (k) { return p[k]; }).map(function (k) { return '<i class="k-' + k + '" style="width:' + (p[k] / t.out * 100).toFixed(1) + '%"></i>'; }).join('') + '</div>';
+    var ppl = pctList([p.card, p.cash, p.none], t.out), pp = { card: ppl[0], cash: ppl[1], none: ppl[2] };
     h += '<ul class="cat-list">' + [['card', '카드'], ['cash', '현금'], ['none', '선택 안 함']].filter(function (k) { return k[0] !== 'none' || p.none; }).map(function (k) {
-      return '<li><div class="cat-line"><span class="cat-name"><i class="dot k-' + k[0] + '"></i>' + k[1] + '</span><span class="num">' + won(p[k[0]]) + ' <span class="muted">· ' + Math.round(p[k[0]] / t.out * 100) + '%</span></span></div></li>';
+      return '<li><div class="cat-line"><span class="cat-name"><i class="dot k-' + k[0] + '"></i>' + k[1] + '</span><span class="num">' + won(p[k[0]]) + ' <span class="muted">· ' + pp[k[0]] + '%</span></span></div></li>';
     }).join('') + '</ul>';
   }
   h += '</section>';
@@ -762,12 +772,13 @@ function renderStats() {
   else {
     var mx = cats[0][1];
     h += '<ul class="cat-list">';
-    cats.forEach(function (c) {
+    var cps = pctList(cats.map(function (c) { return c[1]; }), tot);
+    cats.forEach(function (c, ci) {
       var bud = ct === 'out' && sp.mode === 'month' ? (cb[c[0]] || 0) : 0, st = bud ? budgetState(c[1], bud) : 'ok';
       h += '<li><div class="cat-line"><span class="cat-name">' + esc(c[0]) + '</span><span class="num">' + won(c[1]) + '</span></div>' +
         '<div class="track"><i class="' + (ct === 'in' ? 'in' : st === 'over' ? 'over' : '') + '" style="width:' + (c[1] / mx * 100).toFixed(1) + '%"></i></div>' +
-        '<div class="cat-meta"><span class="num">전체의 ' + Math.round(c[1] / tot * 100) + '%</span>' +
-        (bud ? '<span class="num ' + (st === 'ok' ? '' : st) + '">예산 ' + won(bud) + '의 ' + Math.round(c[1] / bud * 100) + '%</span>' : '') + '</div></li>';
+        '<div class="cat-meta"><span class="num">전체의 ' + cps[ci] + '%</span>' +
+        (bud ? '<span class="num ' + (st === 'ok' ? '' : st) + '">예산 ' + won(bud) + '의 ' + usePct(c[1], bud) + '%</span>' : '') + '</div></li>';
     });
     h += '</ul>';
   }
@@ -784,7 +795,7 @@ function renderStats() {
   }
   h += '<section class="card"><div class="card-head"><h2>' + (fd.unit === 'day' ? '날짜별 지출' : '월별 지출') + '</h2></div><p class="readout">' + readout + '</p>' +
     barChart({ id: 'flow', vals: fd.vals, labels: fd.labels, sel: sel, ref: ref, aria: r.label + ' 지출 막대 차트' });
-  if (ref) h += '<div class="legend"><span><i></i>' + (fd.unit === 'day' ? '하루 예산 (' + won(Math.round(ref / 100) * 100) + ')' : '한 달 예산 (' + won(ref) + ')') + '</span></div>';
+  if (ref) h += '<div class="legend"><span><i></i>' + (fd.unit === 'day' ? '하루 예산 약 ' + won(Math.round(ref / 100) * 100) : '한 달 예산 ' + won(ref)) + '</span></div>';
   h += '<p class="hint">막대를 누르면 금액이 보여요.</p></section>';
 
   // 6-month trend (month mode)
