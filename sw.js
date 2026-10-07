@@ -1,6 +1,6 @@
 // 우리집 가계부 — 오프라인 지원
 // 화면 파일은 인터넷이 되면 최신으로 받고, 안 되면 저장해 둔 것을 씁니다.
-const CACHE = 'gagyebu-v1';
+const CACHE = 'gagyebu-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png'];
 
 self.addEventListener('install', (e) => {
