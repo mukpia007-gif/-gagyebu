@@ -7,7 +7,7 @@
     - Public 선택 > Create repository
  3. "uploading an existing file" 링크를 누르고
     이 폴더 안의 파일과 icons 폴더를 통째로 끌어다 놓은 뒤 Commit changes
-    (index.html, sw.js, manifest.webmanifest, icons 폴더)
+    (index.html, sw.js, manifest.webmanifest, icons 폴더, fonts 폴더)
  4. Settings > Pages > Branch 를 main / (root) 로 고르고 Save
  5. 1~2분 뒤 https://내아이디.github.io/gagyebu/ 주소가 생깁니다.
 
