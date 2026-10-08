@@ -378,16 +378,20 @@ details.sub[open] summary::after { content: "접기"; }
 <script>
 (function () {
 'use strict';
-var APP_VERSION = '2.0';
+var APP_VERSION = '2.1';
 var KEY = 'gagyebu.v1';
 var framed = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
 var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 var DOW = ['일', '월', '화', '수', '목', '금', '토'];
 var PAY = { card: '카드', cash: '현금' };
 var DEFAULT_CATS = {
-  out: ['식비', '카페·간식', '장보기', '생활용품', '교통', '주거·관리비', '통신', '의료·건강', '육아·교육', '쇼핑·미용', '문화·여가', '경조사·선물', '기타'],
+  out: ['식비', '외식', '주거·공과금', '보험료', '교통비', '통신비', '의료비', '간식·사교', '건강·영양', '여행·관광', '여가·문화', '생활용품', '경조사·가족', '쇼핑·미용', '교육비', '구독료', '교회·헌금', '적금·투자', '대출상환', '기타'],
   in: ['월급', '부수입', '용돈', '이자·환급', '기타수입']
 };
+// v2.0 이전 지출 카테고리 → v2.1 목록으로 옮길 때 쓰는 표
+var OLD_OUT_CATS = ['식비', '카페·간식', '장보기', '생활용품', '교통', '주거·관리비', '통신', '의료·건강', '육아·교육', '쇼핑·미용', '문화·여가', '경조사·선물', '기타'];
+var CAT_RENAME = { '교통': '교통비', '통신': '통신비', '의료·건강': '의료비', '주거·관리비': '주거·공과금', '문화·여가': '여가·문화' };
+var CATS_VERSION = 2;
 var TITLES = ['텅장 탈출 일지', '지갑 수비대', '부자 되기 대작전', '돈 새는 구멍 막기 프로젝트', '오늘도 무지출 챌린지'];
 var QUIPS = {
   none: ['적는 순간, 반은 아낀 거예요', '돈은 도망가도 기록은 남는다!', '커피 한 잔도 적으면 재테크', '{n}의 지갑을 지키는 비밀 장부'],
@@ -453,18 +457,22 @@ function makeSample() {
     };
     add(25, 'in', '월급', 3800000, '월급');
     if (rnd() < 0.5) add(12, 'in', '부수입', amt(50000, 250000, 10000), '중고거래');
-    add(25, 'out', '주거·관리비', amt(230000, 285000, 1000), '관리비', 'card');
-    add(21, 'out', '통신', 89000, '휴대폰 요금', 'card');
-    add(5, 'out', '육아·교육', 220000, '학원비', 'card');
+    add(25, 'out', '주거·공과금', amt(230000, 285000, 1000), '관리비', 'card');
+    add(10, 'out', '보험료', 132000, '실손보험', 'card');
+    add(1, 'out', '적금·투자', 300000, '청년적금', 'card');
+    add(3, 'out', '구독료', 13900, '넷플릭스', 'card');
+    add(21, 'out', '통신비', 89000, '휴대폰 요금', 'card');
+    add(5, 'out', '교육비', 220000, '학원비', 'card');
     for (var d = 1; d <= nd; d++) {
-      if (rnd() < 0.55) add(d, 'out', '식비', amt(7000, 32000), pick(['점심', '배달', '저녁 외식', '김밥', '분식']));
-      if (rnd() < 0.35) add(d, 'out', '카페·간식', amt(3000, 9000), pick(['커피', '빵집', '아이스크림']));
-      if (d % 6 === 2) add(d, 'out', '장보기', amt(40000, 120000), pick(['마트', '쿠팡', '시장']));
-      if (rnd() < 0.2) add(d, 'out', '교통', amt(1500, 15000), pick(['버스', '택시', '주차']));
+      if (rnd() < 0.3) add(d, 'out', '식비', amt(7000, 25000), pick(['점심', '김밥', '분식']));
+      if (rnd() < 0.2) add(d, 'out', '외식', amt(15000, 60000), pick(['배달', '저녁 외식', '가족 외식']));
+      if (rnd() < 0.35) add(d, 'out', '간식·사교', amt(3000, 9000), pick(['커피', '빵집', '아이스크림']));
+      if (d % 6 === 2) add(d, 'out', '식비', amt(40000, 120000), pick(['마트', '쿠팡', '시장']));
+      if (rnd() < 0.2) add(d, 'out', '교통비', amt(1500, 15000), pick(['버스', '택시', '주차']));
       if (rnd() < 0.06) add(d, 'out', '쇼핑·미용', amt(20000, 90000), pick(['옷', '미용실', '화장품']));
       if (rnd() < 0.05) add(d, 'out', '생활용품', amt(8000, 40000), pick(['다이소', '세제', '휴지']));
-      if (rnd() < 0.04) add(d, 'out', '문화·여가', amt(15000, 60000), pick(['영화', '키즈카페', '책']));
-      if (rnd() < 0.03) add(d, 'out', '의료·건강', amt(5000, 40000), pick(['병원', '약국']));
+      if (rnd() < 0.04) add(d, 'out', '여가·문화', amt(15000, 60000), pick(['영화', '키즈카페', '책']));
+      if (rnd() < 0.03) add(d, 'out', '의료비', amt(5000, 40000), pick(['병원', '약국']));
     }
   }
   return list;
@@ -480,7 +488,8 @@ function freshState(withSample) {
       name: '선순씨',
       title: TITLES[0],
       budget: withSample ? 1800000 : 0,
-      catBudgets: withSample ? { '식비': 400000, '카페·간식': 80000 } : {},
+      catBudgets: withSample ? { '식비': 500000, '간식·사교': 80000 } : {},
+      catsV: CATS_VERSION,
       sampleSettings: !!withSample,
       lastBackup: null,
       lastCat: { out: '식비', in: '월급' },
@@ -493,6 +502,7 @@ function normalize(s) {
   var f = freshState(false);
   if (!s || typeof s !== 'object') return f;
   s.cats = s.cats && Array.isArray(s.cats.out) && Array.isArray(s.cats.in) ? s.cats : f.cats;
+  var catsV = (s.settings && s.settings.catsV) || 1;
   s.entries = Array.isArray(s.entries) ? s.entries.filter(function (e) {
     return e && typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Number(e.amount) > 0 && (e.type === 'out' || e.type === 'in');
   }).map(function (e) {
@@ -505,8 +515,21 @@ function normalize(s) {
   if (s.settings.lastPay !== 'cash') s.settings.lastPay = 'card';
   if (typeof s.settings.name !== 'string') s.settings.name = '선순씨';
   if (!s.settings.title) s.settings.title = TITLES[0];
+  if (catsV < CATS_VERSION) migrateCats(s);
   s.v = 2;
   return s;
+}
+// 예전 지출 카테고리를 새 목록으로 바꿈. 직접 추가한 카테고리는 '기타' 앞에 남기고, 기존 기록은 지우지 않음
+function migrateCats(s) {
+  var NEW = DEFAULT_CATS.out, custom = s.cats.out.filter(function (c) { return OLD_OUT_CATS.indexOf(c) < 0 && NEW.indexOf(c) < 0 && !CAT_RENAME[c]; });
+  s.cats.out = NEW.slice(0, -1).concat(custom, ['기타']);
+  s.entries.forEach(function (e) { if (e.type === 'out' && CAT_RENAME[e.cat]) e.cat = CAT_RENAME[e.cat]; });
+  var cb = {};
+  Object.keys(s.settings.catBudgets).forEach(function (k) { var nk = CAT_RENAME[k] || k; if (s.cats.out.indexOf(nk) >= 0) cb[nk] = s.settings.catBudgets[k]; });
+  s.settings.catBudgets = cb;
+  var lc = CAT_RENAME[s.settings.lastCat.out] || s.settings.lastCat.out;
+  s.settings.lastCat.out = s.cats.out.indexOf(lc) >= 0 ? lc : '식비';
+  s.settings.catsV = CATS_VERSION;
 }
 var storageOK = true;
 function load() {
